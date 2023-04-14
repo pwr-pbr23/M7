@@ -17,7 +17,7 @@ Progress is tracked in Github Projects
 
 # Reproduction of results:
 
-Note: Some files were to big to put them on Github, they are in the missing files link above (on GoogleColab there is a section which uploads them to project)
+Note: Some files were too big to put them on Github, they are in the missing files link above (on GoogleColab there is a section which uploads them to project)
 
 For Tensorflow dataset (about 10min per classifier on GoogleColab):
 
