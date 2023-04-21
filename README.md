@@ -19,7 +19,7 @@ Progress is tracked in Github Projects
 
 Note: Some files were too big to put them on Github, they are in the missing files link above (on GoogleColab there is a section which uploads them to project)
 
-For Tensorflow dataset (about 10min per classifier on GoogleColab):
+For Tensorflow dataset:
 
 To train message classifier: 
 
@@ -41,7 +41,7 @@ To run ensemble classifier:
 
 `python variant_ensemble.py --config_file tf_dataset.conf`
 
-Similarly, for SAP dataset (some classifiers about 1,5h on GoogleColab):
+Similarly, for SAP dataset (some classifiers about 1,5h on GoogleColab!):
 
 To train message classifier: 
 
