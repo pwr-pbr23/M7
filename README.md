@@ -17,6 +17,9 @@ Progress is tracked in Github Projects
 
 # Reproduction of results:
 
+You can do it manualy (instruction below) or via GoogleColab (by running commands in sequence)
+Results can be found after training each classifier as the F1 score presented in epoch 19 (for message, patch and issue) and as the F1 score presented at the end for ensemble.
+
 Note: Some files were too big to put them on Github, they are in the missing files link above (on GoogleColab there is a section which uploads them to project)
 
 For Tensorflow dataset:
