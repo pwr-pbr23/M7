@@ -2,6 +2,14 @@ import json
 from json import JSONEncoder
 
 
+class NewRecord:
+    def __init__(self, commit_id, message, patch, label):
+        self.commit_id = commit_id
+        self.message = message
+        self.patch = patch
+        self.label = label
+
+
 class Record():
     def __init__(self, id=None, repo=None, commit_id=None, commit_message=None, label=None, json_value=None):
         # assert ((json is not None)

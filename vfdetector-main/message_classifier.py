@@ -46,8 +46,8 @@ params = {'batch_size': 32,
           'num_workers': 8}
 
 test_params = {'batch_size': 64,
-          'shuffle': False,
-          'num_workers': 8}
+               'shuffle': False,
+               'num_workers': 8}
 
 
 class TextDataset(Dataset):
@@ -83,7 +83,7 @@ def predict_test_data(model, testing_generator, device, writing_false_case=False
 
             y_pred.extend(torch.argmax(outs.logits, dim=1).tolist())
             y_test.extend(label_batch.tolist())
-            
+
             y_probs.extend((F.softmax(outs.logits, dim=1))[:, 1].tolist())
 
         precision = metrics.precision_score(y_pred=y_pred, y_true=y_test)
@@ -107,6 +107,7 @@ def read_message(file_path, is_pos):
                 message_list.append(row[0])
     return message_list
 
+
 def read_sap_dataset(need_urls=False):
     records = data_loader.load_records('sub_enhanced_dataset_th_100.txt')
     messages = []
@@ -116,13 +117,34 @@ def read_sap_dataset(need_urls=False):
         messages.append(record.commit_message)
         labels.append(record.label)
         url = record.repo + '/commit/' + record.commit_id
-        url = url[len('https://github.com/') :]
+        url = url[len('https://github.com/'):]
         urls.append(url)
 
     if need_urls:
         return messages, labels, urls
     else:
         return messages, labels
+
+
+def read_new_dataset(dataset_name):
+    print("Reading dataset...")
+    records = []
+    with open('commits.json', 'r') as file:
+        json_raw = file.read()
+        json_dict_list = data_loader.json.loads(json_raw)
+        for json_dict in json_dict_list:
+            records.append(data_loader.NewRecord(
+                commit_id=json_dict['id'],
+                message=json_dict['message'],
+                patch=json_dict['patch'],
+                label=json_dict['label']
+            ))
+    messages = []
+    labels = []
+    for record in records:
+        messages.append(record.message)
+        labels.append(record.label)
+    return messages, labels
 
 
 def get_roberta_features(tokenizer, messages, length=128):
@@ -152,12 +174,12 @@ def read_tensor_flow_dataset(dataset_name, need_url_data=False):
         partition = item[6]
         message = item[2]
 
-        if pd.isnull(message):   
+        if pd.isnull(message):
             message = ' '
 
         label = item[5]
         pl = 'UNKNOWN'
-        
+
         url_to_msg[url] = message
         url_to_label[url] = label
         url_to_partition[url] = partition
@@ -181,11 +203,10 @@ def read_tensor_flow_dataset(dataset_name, need_url_data=False):
 
 
 def do_train(args):
-
     global dataset_name, MODEL_PATH
 
     dataset_name = args.dataset_path
-    
+
     MODEL_PATH = args.model_path
 
     print("Dataset name: {}".format(dataset_name))
@@ -193,9 +214,14 @@ def do_train(args):
 
     if dataset_name == config.SAP_DATASET_NAME:
         messages, labels = read_sap_dataset()
-        message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20, random_state=109)
-    else:
+        message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
+                                                                                random_state=109)
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         message_train, message_test, label_train, label_test = read_tensor_flow_dataset(dataset_name)
+    else:
+        messages, labels = read_new_dataset(dataset_name)
+        message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
+                                                                                random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
@@ -225,7 +251,7 @@ def do_train(args):
     partition['train'] = train_partition
 
     for i in range(len(test_features)):
-        id = len(train_features) + i           # next index
+        id = len(train_features) + i  # next index
         input_id = test_features[i][0]
         attention_mask = test_features[i][1]
         label = label_test[i]
@@ -286,6 +312,7 @@ def do_train(args):
         # print("AUC Java: {}".format(auc))
 
     torch.save(model.state_dict(), MODEL_PATH)
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='')
