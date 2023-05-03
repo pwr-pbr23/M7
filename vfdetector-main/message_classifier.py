@@ -218,7 +218,7 @@ def do_train(args):
                                                                                 random_state=109)
     elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         message_train, message_test, label_train, label_test = read_tensor_flow_dataset(dataset_name)
-    elif dataset_name == config.NEW_DATASET_NAME:
+    else:
         messages, labels = read_new_dataset(dataset_name)
         message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
                                                                                 random_state=109)
