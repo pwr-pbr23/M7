@@ -129,7 +129,7 @@ def read_sap_dataset(need_urls=False):
 def read_new_dataset(dataset_name):
     print("Reading dataset...")
     records = []
-    with open('commits.json', 'r') as file:
+    with open(dataset_name, 'r') as file:
         json_raw = file.read()
         json_dict_list = data_loader.json.loads(json_raw)
         for json_dict in json_dict_list:
@@ -218,7 +218,7 @@ def do_train(args):
                                                                                 random_state=109)
     elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         message_train, message_test, label_train, label_test = read_tensor_flow_dataset(dataset_name)
-    else:
+    elif dataset_name == config.NEW_DATASET_NAME:
         messages, labels = read_new_dataset(dataset_name)
         message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
                                                                                 random_state=109)
