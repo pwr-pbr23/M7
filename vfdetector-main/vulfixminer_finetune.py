@@ -1,3 +1,4 @@
+from sklearn.model_selection import train_test_split
 from transformers import RobertaTokenizer, RobertaModel
 import torch
 from torch import nn as nn
@@ -247,12 +248,55 @@ def get_tensor_flow_data(dataset_name):
     return url_to_diff, url_to_partition, url_to_label, url_to_pl
 
 
+def get_new_data(dataset_name):
+    print("Reading dataset...")
+    df = pd.read_json(dataset_name)
+    df = df[['id', 'message', 'patch', 'label', 'url']]
+    items = df.to_numpy().tolist()
+    partitions = ['train', 'test']
+
+    url_to_diff = {}
+    url_to_partition = {}
+    url_to_label = {}
+    url_to_pl = {}
+
+    train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
+
+    for item in items:
+        commit_id = item[0]
+        repo = item[4]
+        url = repo + '/commit/' + commit_id
+        if item in train_items:
+            partition = partitions[0]
+        else:
+            partition = partitions[1]
+        diff = item[2]
+
+        if pd.isnull(diff):
+            continue
+
+        label = item[3]
+        pl = "UNKNOWN"
+
+        if url not in url_to_diff:
+            url_to_diff[url] = []
+
+        url_to_diff[url].append(diff)
+        url_to_partition[url] = partition
+        url_to_label[url] = label
+        url_to_pl[url] = pl
+
+    return url_to_diff, url_to_partition, url_to_label, url_to_pl
+
+
 def get_data(dataset_name):
 
     if dataset_name == 'sap_patch_dataset.csv':
         url_to_diff, url_to_partition, url_to_label, url_to_pl = get_sap_data(dataset_name)
+    elif dataset_name == 'tf_vuln_dataset.csv':
+        url_to_diff, url_to_partition, url_to_label, url_to_pl = get_tensor_flow_data(dataset_name)
     else:
-        url_to_diff, url_to_partition, url_to_label, url_to_pl = get_tensor_flow_data(dataset_name) 
+        url_to_diff, url_to_partition, url_to_label, url_to_pl = get_new_data(dataset_name)
 
     patch_train, patch_test = [], []
     label_train, label_test = [], []
