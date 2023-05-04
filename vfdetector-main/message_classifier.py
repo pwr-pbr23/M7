@@ -89,11 +89,12 @@ def predict_test_data(model, testing_generator, device, writing_false_case=False
         precision = metrics.precision_score(y_pred=y_pred, y_true=y_test)
         recall = metrics.recall_score(y_pred=y_pred, y_true=y_test)
         f1 = metrics.f1_score(y_pred=y_pred, y_true=y_test)
+        mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=y_test)
 
     if need_probs:
-        return precision, recall, f1, y_probs
+        return precision, recall, f1, y_probs, mcc
     else:
-        return precision, recall, f1
+        return precision, recall, f1, mcc
 
 
 def read_message(file_path, is_pos):
@@ -126,7 +127,7 @@ def read_sap_dataset(need_urls=False):
         return messages, labels
 
 
-def read_new_dataset(dataset_name):
+def read_new_dataset(dataset_name, need_urls=False):
     print("Reading dataset...")
     records = []
     with open(dataset_name, 'r') as file:
@@ -136,15 +137,25 @@ def read_new_dataset(dataset_name):
             records.append(data_loader.NewRecord(
                 commit_id=json_dict['id'],
                 message=json_dict['message'],
+                issue=json_dict['issue'],
                 patch=json_dict['patch'],
-                label=json_dict['label']
+                label=json_dict['label'],
+                url=json_dict['url']
             ))
     messages = []
     labels = []
+    urls = []
     for record in records:
         messages.append(record.message)
         labels.append(record.label)
-    return messages, labels
+        url = record.url + '/commit/' + record.commit_id
+        url = url[len('https://github.com/'):]
+        urls.append(url)
+
+    if need_urls:
+        return messages, labels, urls
+    else:
+        return messages, labels
 
 
 def get_roberta_features(tokenizer, messages, length=128):
@@ -303,12 +314,13 @@ def do_train(args):
 
         print("epoch {}, learning rate {}, total loss {}".format(epoch, lr_scheduler.get_last_lr(), total_loss))
 
-        precision, recall, f1 = predict_test_data(model=model,
-                                                  testing_generator=testing_generator,
-                                                  device=device)
+        precision, recall, f1, mcc = predict_test_data(model=model,
+                                                       testing_generator=testing_generator,
+                                                       device=device)
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         # print("AUC Java: {}".format(auc))
 
     torch.save(model.state_dict(), MODEL_PATH)

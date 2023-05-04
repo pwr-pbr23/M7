@@ -160,6 +160,24 @@ def preprocess_single_record(record, options):
     return record
 
 
+def preprocess_single_new_record(record, options):
+    record.issue_info = ''
+    if options.use_issue_classifier:
+        if record.issue['title'] is not None:
+            record.issue_info = record.issue_info + '\n' + record.issue['title']
+        if record.issue['body'] is not None:
+            record.issue_info = record.issue_info + '\n' + record.issue['body']
+        if options.use_comments:
+            if record.issue['comments'] is not None:
+                record.issue_info = record.issue_info + '\n' + record.issue['comments']
+
+    record.issue_info = ' '.join([token for token in record.issue_info.split(' ')[:500]])
+    if record.issue_info != '':
+        pass
+
+    return record
+
+
 def get_commit_id_to_repo(records):
     commit_id_to_repo = {}
 

@@ -1,6 +1,7 @@
 import json
 import os
 import pandas as pd
+from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import config
 # from variant_5_finetune import get_tensor_flow_data
@@ -82,6 +83,46 @@ def get_sap_data(dataset_name):
     return url_train, url_test, label_train, label_test, url_to_label, url_to_pl
 
 
+def get_new_data(dataset_name):
+    print("Reading dataset...")
+    df = pd.read_json(dataset_name)
+    df = df[['id', 'message', 'patch', 'label', 'url']]
+    items = df.to_numpy().tolist()
+    partitions = ['train', 'test']
+    train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
+
+    url_train, url_test = [], []
+    label_train, label_test = [], []
+    url_to_pl = {}
+    url_to_label = {}
+    for item in tqdm(items):
+        commit_id = item[0]
+        repo = item[4]
+        url = repo + '/commit/' + commit_id
+        if item in train_items:
+            partition = partitions[0]
+        else:
+            partition = partitions[1]
+        pl = "UNKNOWN"
+        label = item[3]
+        url_to_pl[url] = pl
+        url_to_label[url] = label
+        if partition == 'train':
+            if url not in url_train:
+                url_train.append(url)
+                label_train.append(label)
+        elif partition == 'test':
+            if url not in url_test:
+                url_test.append(url)
+                label_test.append(label)
+        else:
+            Exception("Invalid partition: {}".format(partition))
+
+    print("Finish reading dataset")
+
+    return url_train, url_test, label_train, label_test, url_to_label, url_to_pl
+
+
 def get_tensor_flow_data(dataset_name):
     # print("Reading dataset...")
     # df = pd.read_csv(dataset_name)
@@ -137,8 +178,11 @@ def get_data(dataset_name, need_pl=False):
         dataset_name = 'sap_patch_dataset.csv'
         url_train, url_test, label_train, label_test, url_to_label, url_to_pl = get_sap_data(dataset_name)
 
-    else:
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         url_train, url_test, label_train, label_test, url_to_label, url_to_pl = get_tensor_flow_data(dataset_name)
+
+    else:
+        url_train, url_test, label_train, label_test, url_to_label, url_to_pl = get_new_data(dataset_name)
 
     url_data = {'train': url_train, 'test': url_test}
     label_data = {'train': label_train, 'test': label_test}

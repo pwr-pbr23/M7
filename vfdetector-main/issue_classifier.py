@@ -18,7 +18,7 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from tqdm import tqdm
 import data_loader
-from data_preprocessor import preprocess_single_record
+from data_preprocessor import preprocess_single_record, preprocess_single_new_record
 from feature_options import ExperimentOption
 from message_classifier import get_roberta_features, TextDataset, predict_test_data
 import argparse
@@ -70,17 +70,17 @@ def read_sap_issue(dataset_name='sub_enhanced_dataset_th_100.txt', need_urls=Fal
     print("Preprocessing records...")
 
     records = [preprocess_single_record(record, options) for record in tqdm(records)]
-    
+
     for record in records:
         url = record.repo + '/commit/' + record.commit_id
-        url = url[len('https://github.com/') :]
+        url = url[len('https://github.com/'):]
         url_to_issue[url] = record.issue_info
 
     original_records = data_loader.load_records('full_dataset_with_all_features.txt')
 
     for record in original_records:
         url = record.repo + '/commit/' + record.commit_id
-        url = url[len('https://github.com/') :]
+        url = url[len('https://github.com/'):]
         urls.append(url)
         labels.append(record.label)
         if url in url_to_issue:
@@ -92,7 +92,49 @@ def read_sap_issue(dataset_name='sub_enhanced_dataset_th_100.txt', need_urls=Fal
 
     if need_urls:
         return issues, labels, urls
-    else: 
+    else:
+        return issues, labels
+
+
+def read_new_issue(dataset_name='commity.json', need_urls=False):
+    issues, labels, urls = [], [], []
+    url_to_issue = {}
+
+    records = []
+    with open(dataset_name, 'r') as file:
+        json_raw = file.read()
+        json_dict_list = data_loader.json.loads(json_raw)
+        for json_dict in json_dict_list:
+            records.append(data_loader.NewRecord(
+                commit_id=json_dict['id'],
+                message=json_dict['message'],
+                issue=json_dict['issue'],
+                patch=json_dict['patch'],
+                label=json_dict['label'],
+                url=json_dict['url']
+            ))
+    options = ExperimentOption()
+
+    print("Preprocessing records...")
+
+    records = [preprocess_single_new_record(record, options) for record in tqdm(records)]
+
+    for record in records:
+        url = record.url + '/commit/' + record.commit_id
+        url = url[len('https://github.com/'):]
+        url_to_issue[url] = record.issue_info
+        urls.append(url)
+        labels.append(record.label)
+        if url in url_to_issue:
+            issues.append(url_to_issue[url])
+        else:
+            issues.append(' ')
+
+    print("Finish preprocessing")
+
+    if need_urls:
+        return issues, labels, urls
+    else:
         return issues, labels
 
 
@@ -125,10 +167,10 @@ def read_issue():
                             body = issue['body']
                         else:
                             body = ''
-                        
+
                         for url in number_to_url[number]:
                             url_to_issue[url] = title + '\n' + body
-    
+
     print("Finish reading")
 
     return url_to_issue
@@ -162,7 +204,7 @@ def do_train(args):
     global dataset_name, MODEL_PATH
 
     dataset_name = args.dataset_path
-    
+
     MODEL_PATH = args.model_path
 
     print("Dataset name: {}".format(dataset_name))
@@ -170,9 +212,14 @@ def do_train(args):
 
     if dataset_name == config.SAP_DATASET_NAME:
         texts, labels = read_sap_issue(dataset_name)
-        text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20, random_state=109)
-    else:
+        text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
+                                                                          random_state=109)
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         text_train, text_test, label_train, label_test = read_tensor_flow_issue(dataset_name)
+    else:
+        texts, labels = read_new_issue(dataset_name)
+        text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
+                                                                          random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
@@ -202,7 +249,7 @@ def do_train(args):
     partition['train'] = train_partition
 
     for i in range(len(test_features)):
-        id = len(train_features) + i           # next index
+        id = len(train_features) + i  # next index
         input_id = test_features[i][0]
         attention_mask = test_features[i][1]
         label = label_test[i]
@@ -259,12 +306,13 @@ def do_train(args):
 
         print("epoch {}, learning rate {}, total loss {}".format(epoch, lr_scheduler.get_last_lr(), total_loss))
 
-        precision, recall, f1 = predict_test_data(model=model,
-                                                  testing_generator=testing_generator,
-                                                  device=device)
+        precision, recall, f1, mcc = predict_test_data(model=model,
+                                                       testing_generator=testing_generator,
+                                                       device=device)
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         # print("AUC Java: {}".format(auc))
 
     torch.save(model.state_dict(), MODEL_PATH)

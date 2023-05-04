@@ -87,6 +87,7 @@ def predict_test_data(model, testing_generator, device, need_prob=False, need_fe
         precision = metrics.precision_score(y_pred=y_pred, y_true=y_test)
         recall = metrics.recall_score(y_pred=y_pred, y_true=y_test)
         f1 = metrics.f1_score(y_pred=y_pred, y_true=y_test)
+        mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=y_test)
         try:
             auc = metrics.roc_auc_score(y_true=y_test, y_score=probs)
         except Exception:
@@ -102,12 +103,12 @@ def predict_test_data(model, testing_generator, device, need_prob=False, need_fe
 
 
     if need_feature_only:
-        return f1, urls, final_features
+        return f1, urls, final_features, mcc
 
     if not need_prob:
-        return precision, recall, f1, auc
+        return precision, recall, f1, auc, mcc
     else:
-        return precision, recall, f1, auc, urls, probs
+        return precision, recall, f1, auc, urls, probs, mcc
 
 
 def train(model, learning_rate, number_of_epochs, training_generator, test_generator):
@@ -150,7 +151,7 @@ def train(model, learning_rate, number_of_epochs, training_generator, test_gener
         model.eval()
 
         print("Result on testing dataset...")
-        precision, recall, f1, auc = predict_test_data(model=model,
+        precision, recall, f1, auc, mcc = predict_test_data(model=model,
                                                        testing_generator=test_generator,
                                                        device=device)
 
@@ -158,6 +159,7 @@ def train(model, learning_rate, number_of_epochs, training_generator, test_gener
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
 

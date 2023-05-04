@@ -88,7 +88,7 @@ def predict_test_data(model, testing_generator, device, need_prob=False):
         precision = metrics.precision_score(y_pred=y_pred, y_true=y_test)
         recall = metrics.recall_score(y_pred=y_pred, y_true=y_test)
         f1 = metrics.f1_score(y_pred=y_pred, y_true=y_test)
-
+        mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=y_test)
         try:
             auc = metrics.roc_auc_score(y_true=y_test, y_score=probs)
         except Exception:
@@ -96,9 +96,9 @@ def predict_test_data(model, testing_generator, device, need_prob=False):
 
     print("Finish testing")
     if not need_prob:
-        return precision, recall, f1, auc
+        return precision, recall, f1, auc, mcc
     else:
-        return precision, recall, f1, auc, urls, probs
+        return precision, recall, f1, auc, urls, probs, mcc
 
 
 def train(model, learning_rate, number_of_epochs, training_generator, test_generator):
@@ -141,14 +141,15 @@ def train(model, learning_rate, number_of_epochs, training_generator, test_gener
         model.eval()
 
         print("Result on testing dataset...")
-        precision, recall, f1, auc = predict_test_data(model=model,
-                                                       testing_generator=test_generator,
-                                                       device=device)
-        
+        precision, recall, f1, auc, mcc = predict_test_data(model=model,
+                                                            testing_generator=test_generator,
+                                                            device=device)
+
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         if epoch + 1 == FINETUNE_EPOCH:
@@ -231,9 +232,9 @@ def get_tensor_flow_data(dataset_name):
         partition = item[6]
         diff = item[4]
 
-        if pd.isnull(diff):   
+        if pd.isnull(diff):
             continue
-        
+
         label = item[5]
         pl = "UNKNOWN"
 
@@ -263,28 +264,29 @@ def get_new_data(dataset_name):
     train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
 
     for item in items:
-        commit_id = item[0]
-        repo = item[4]
-        url = repo + '/commit/' + commit_id
-        if item in train_items:
-            partition = partitions[0]
-        else:
-            partition = partitions[1]
-        diff = item[2]
+        for patch in item[2]:
+            commit_id = item[0]
+            repo = item[4]
+            url = repo + '/commit/' + commit_id
+            if item in train_items:
+                partition = partitions[0]
+            else:
+                partition = partitions[1]
+            diff = patch
 
-        if pd.isnull(diff):
-            continue
+            if pd.isnull(diff):
+                continue
 
-        label = item[3]
-        pl = "UNKNOWN"
+            label = item[3]
+            pl = "UNKNOWN"
 
-        if url not in url_to_diff:
-            url_to_diff[url] = []
+            if url not in url_to_diff:
+                url_to_diff[url] = []
 
-        url_to_diff[url].append(diff)
-        url_to_partition[url] = partition
-        url_to_label[url] = label
-        url_to_pl[url] = pl
+            url_to_diff[url].append(diff)
+            url_to_partition[url] = partition
+            url_to_label[url] = label
+            url_to_pl[url] = pl
 
     return url_to_diff, url_to_partition, url_to_label, url_to_pl
 
@@ -333,7 +335,7 @@ def do_train(args):
     global dataset_name, FINE_TUNED_MODEL_PATH
 
     dataset_name = args.dataset_path
-    
+
     FINE_TUNED_MODEL_PATH = args.finetune_model_path
 
     print("Dataset name: {}".format(dataset_name))
@@ -349,7 +351,7 @@ def do_train(args):
     for i in range(len(patch_data['train'])):
         label = label_data['train'][i]
         url = url_data['train'][i]
-        for j in range(len(patch_data['train'][i])) :
+        for j in range(len(patch_data['train'][i])):
             diff = patch_data['train'][i][j]
             train_ids.append(index)
             all_data.append(diff)
@@ -360,7 +362,7 @@ def do_train(args):
     for i in range(len(patch_data['test'])):
         label = label_data['test'][i]
         url = url_data['test'][i]
-        for j in range(len(patch_data['test'][i])) :
+        for j in range(len(patch_data['test'][i])):
             diff = patch_data['test'][i][j]
             test_ids.append(index)
             all_data.append(diff)
@@ -372,7 +374,7 @@ def do_train(args):
     print("Preparing commit patch data...")
     id_to_input, id_to_mask, id_to_label, id_to_url = retrieve_patch_data(all_data, all_label, all_url)
     print("Finish preparing commit patch data")
-    
+
     training_set = VulFixMinerFileDataset(train_ids, id_to_label, id_to_url, id_to_input, id_to_mask)
     test_set = VulFixMinerFileDataset(test_ids, id_to_label, id_to_url, id_to_input, id_to_mask)
 

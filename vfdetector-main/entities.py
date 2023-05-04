@@ -3,11 +3,14 @@ from json import JSONEncoder
 
 
 class NewRecord:
-    def __init__(self, commit_id, message, patch, label):
+    def __init__(self, commit_id, message, issue, patch, label, url):
         self.commit_id = commit_id
         self.message = message
+        self.issue = issue
         self.patch = patch
         self.label = label
+        self.url = url
+        self.issue_info = None
 
 
 class Record():
