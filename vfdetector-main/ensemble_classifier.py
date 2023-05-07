@@ -93,7 +93,8 @@ def predict_test_data(model, testing_generator, device, need_prob=False):
     urls = []
     with torch.no_grad():
         model.eval()
-        for ids, url_batch, feature_1, feature_2, feature_3, feature_5, feature_6, feature_7, feature_8, label_batch in tqdm(testing_generator):
+        for ids, url_batch, feature_1, feature_2, feature_3, feature_5, feature_6, feature_7, feature_8, label_batch in tqdm(
+                testing_generator):
             feature_1 = feature_1.to(device)
             feature_2 = feature_2.to(device)
             feature_3 = feature_3.to(device)
@@ -116,6 +117,7 @@ def predict_test_data(model, testing_generator, device, need_prob=False):
         precision = metrics.precision_score(y_pred=y_pred, y_true=y_test)
         recall = metrics.recall_score(y_pred=y_pred, y_true=y_test)
         f1 = metrics.f1_score(y_pred=y_pred, y_true=y_test)
+        mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=y_test)
         try:
             auc = metrics.roc_auc_score(y_true=y_test, y_score=probs)
         except Exception:
@@ -124,9 +126,9 @@ def predict_test_data(model, testing_generator, device, need_prob=False):
     print("Finish testing")
 
     if not need_prob:
-        return precision, recall, f1, auc
+        return precision, recall, f1, auc, mcc
     else:
-        return precision, recall, f1, auc, urls, probs
+        return precision, recall, f1, auc, urls, probs, mcc
 
 
 def train(model, learning_rate, number_of_epochs, training_generator, test_generator):
@@ -145,7 +147,8 @@ def train(model, learning_rate, number_of_epochs, training_generator, test_gener
         model.train()
         total_loss = 0
         current_batch = 0
-        for ids, url_batch, feature_1, feature_2, feature_3, feature_5, feature_6, feature_7, feature_8, label_batch in tqdm(training_generator):
+        for ids, url_batch, feature_1, feature_2, feature_3, feature_5, feature_6, feature_7, feature_8, label_batch in tqdm(
+                training_generator):
             feature_1 = feature_1.to(device)
             feature_2 = feature_2.to(device)
             feature_3 = feature_3.to(device)
@@ -176,9 +179,9 @@ def train(model, learning_rate, number_of_epochs, training_generator, test_gener
         model.eval()
 
         print("Result on testing dataset...")
-        precision, recall, f1, auc, urls, probs = predict_test_data(model=model,
-                                                       testing_generator=test_generator,
-                                                       device=device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = predict_test_data(model=model,
+                                                                         testing_generator=test_generator,
+                                                                         device=device, need_prob=True)
 
         if epoch == number_of_epochs - 1:
             write_prob_to_file(TEST_PROBS_PATH, urls, probs)
@@ -187,6 +190,7 @@ def train(model, learning_rate, number_of_epochs, training_generator, test_gener
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         if epoch == number_of_epochs - 1:
@@ -200,14 +204,13 @@ def do_train(args):
 
     config_file_name = args.config_file
     config_parser = configparser.RawConfigParser()
-    config_parser.read(config_file_name) 
+    config_parser.read(config_file_name)
     config_dict = dict(config_parser.items('DATASET_CONFIG'))
 
     dataset_name = config_dict['dataset_name']
     MODEL_PATH = config_dict['ensemble_model_path']
     TRAIN_PROBS_PATH = config_dict['ensemble_train_prob_path']
     TEST_PROBS_PATH = config_dict['ensemble_test_prob_path']
-
 
     variant_to_drop = []
     if args.ablation_study == True:
@@ -274,7 +277,6 @@ def do_train(args):
         id_to_feature[index] = feature_data['test'][i]
         index += 1
 
-
     training_set = EnsembleDataset(train_ids, id_to_label, id_to_url, id_to_feature)
     test_set = EnsembleDataset(test_ids, id_to_label, id_to_url, id_to_feature)
 
@@ -297,9 +299,9 @@ def do_train(args):
           test_generator=test_generator)
 
     print("Result on testing dataset...")
-    precision, recall, f1, auc, urls, probs = predict_test_data(model=model,
-                                                    testing_generator=training_generator,
-                                                    device=device, need_prob=True)
+    precision, recall, f1, auc, urls, probs, mcc = predict_test_data(model=model,
+                                                                     testing_generator=training_generator,
+                                                                     device=device, need_prob=True)
 
     write_prob_to_file(TRAIN_PROBS_PATH, urls, probs)
 

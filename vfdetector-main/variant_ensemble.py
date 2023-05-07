@@ -113,17 +113,19 @@ def infer_variant_1(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS)
 
     if need_feature_only:
-        f1, urls, features = variant_1.predict_test_data(model, generator, device, need_prob=True, need_feature_only=need_feature_only)
+        f1, urls, features, mcc = variant_1.predict_test_data(model, generator, device, need_prob=True, need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
 
     else:
-        precision, recall, f1, auc, urls, probs = variant_1.predict_test_data(model, generator, device, need_prob=True, need_feature_only=need_feature_only)
+        precision, recall, f1, auc, urls, probs, mcc = variant_1.predict_test_data(model, generator, device, need_prob=True, need_feature_only=need_feature_only)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -148,16 +150,18 @@ def infer_variant_2(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS)
 
     if need_feature_only:
-        f1, urls, features = variant_2.predict_test_data(model, generator, device, need_prob=True, need_feature_only=need_feature_only)
+        f1, urls, features, mcc = variant_2.predict_test_data(model, generator, device, need_prob=True, need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
     else:
-        precision, recall, f1, auc, urls, probs = variant_2.predict_test_data(model, generator, device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = variant_2.predict_test_data(model, generator, device, need_prob=True)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -181,17 +185,19 @@ def infer_variant_3(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS, collate_fn=variant_3.custom_collate)
 
     if need_feature_only:
-        f1, urls, features = variant_3.predict_test_data(model, generator, device, need_prob=True,
+        f1, urls, features, mcc = variant_3.predict_test_data(model, generator, device, need_prob=True,
                                                           need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
     else:
-        precision, recall, f1, auc, urls, probs = variant_3.predict_test_data(model, generator, device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = variant_3.predict_test_data(model, generator, device, need_prob=True)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -215,17 +221,19 @@ def infer_variant_5(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS)
 
     if need_feature_only:
-        f1, urls, features = variant_5.predict_test_data(model, generator, device, need_prob=True,
+        f1, urls, features, mcc = variant_5.predict_test_data(model, generator, device, need_prob=True,
                                                           need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
     else:
-        precision, recall, f1, auc, urls, probs = variant_5.predict_test_data(model, generator, device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = variant_5.predict_test_data(model, generator, device, need_prob=True)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -249,17 +257,19 @@ def infer_variant_6(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS)
 
     if need_feature_only:
-        f1, urls, features = variant_6.predict_test_data(model, generator, device, need_prob=True,
+        f1, urls, features, mcc = variant_6.predict_test_data(model, generator, device, need_prob=True,
                                                           need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
     else:
-        precision, recall, f1, auc, urls, probs = variant_6.predict_test_data(model, generator, device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = variant_6.predict_test_data(model, generator, device, need_prob=True)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -284,17 +294,19 @@ def infer_variant_7(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS, collate_fn=variant_7.custom_collate)
 
     if need_feature_only:
-        f1, urls, features = variant_7.predict_test_data(model, generator, device, need_prob=True,
+        f1, urls, features, mcc = variant_7.predict_test_data(model, generator, device, need_prob=True,
                                                           need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
     else:
-        precision, recall, f1, auc, urls, probs = variant_7.predict_test_data(model, generator, device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = variant_7.predict_test_data(model, generator, device, need_prob=True)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -319,17 +331,19 @@ def infer_variant_8(partition, result_file_path, need_feature_only=False):
     generator = DataLoader(dataset, **TEST_PARAMS, collate_fn=variant_8.custom_collate)
 
     if need_feature_only:
-        f1, urls, features = variant_8.predict_test_data(model, generator, device, need_prob=True,
+        f1, urls, features, mcc = variant_8.predict_test_data(model, generator, device, need_prob=True,
                                                           need_feature_only=need_feature_only)
         print("F1: {}".format(f1))
+        print("MCC: {}".format(mcc))
         write_feature_to_file(result_file_path, urls, features)
     else:
-        precision, recall, f1, auc, urls, probs = variant_8.predict_test_data(model, generator, device, need_prob=True)
+        precision, recall, f1, auc, urls, probs, mcc = variant_8.predict_test_data(model, generator, device, need_prob=True)
 
         print("Precision: {}".format(precision))
         print("Recall: {}".format(recall))
         print("F1: {}".format(f1))
         print("AUC: {}".format(auc))
+        print("MCC: {}".format(mcc))
         print("-" * 32)
 
         write_prob_to_file(result_file_path, urls, probs)
@@ -469,7 +483,9 @@ def get_combined_ensemble_model():
     y_probs = train_ensemble_model.predict_proba(test_prob_list)[:, 1]
     y_pred = train_ensemble_model.predict(test_prob_list)
     f1 = metrics.f1_score(y_true=test_label_list, y_pred=y_pred)
+    mcc = metrics.matthews_corrcoef(y_true=test_label_list, y_pred=y_pred)
     print("F1 of ensemble model: {}".format(f1))
+    print("MCC of ensemble model: {}".format(mcc))
 
     with open('probs/patch_ensemble_prob_test.txt', 'w') as file:
         writer = csv.writer(file)
@@ -551,8 +567,16 @@ def infer_message_classifier(config_dict):
         
         url_train, url_test, _, _ = train_test_split(urls, [0]*len(urls), test_size=0.20, random_state=109)
 
-    else:
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         message_train, message_test, label_train, label_test, url_train, url_test = message_classifier.read_tensor_flow_dataset(dataset_name, need_url_data=True)
+
+    else:
+        messages, labels, urls = message_classifier.read_new_dataset(dataset_name, need_urls=True)
+
+        message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
+                                                                                random_state=109)
+
+        url_train, url_test, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
@@ -600,14 +624,14 @@ def infer_message_classifier(config_dict):
     testing_generator = torch.utils.data.DataLoader(testing_set, **message_classifier.test_params)
 
 
-    precision, recall, f1, y_train_probs = message_classifier.predict_test_data(model, training_generator, device, need_probs=True)
+    precision, recall, f1, y_train_probs, mcc = message_classifier.predict_test_data(model, training_generator, device, need_probs=True)
     
     with open(config_dict['message_train_prob_path'], 'w') as file:
         writer = csv.writer(file)
         for i, prob in enumerate(y_train_probs):
             writer.writerow([url_train[i], prob])
 
-    precision, recall, f1, y_test_probs = message_classifier.predict_test_data(model, testing_generator, device, need_probs=True)
+    precision, recall, f1, y_test_probs, mcc = message_classifier.predict_test_data(model, testing_generator, device, need_probs=True)
     
     with open(config_dict['message_test_prob_path'], 'w') as file:
         writer = csv.writer(file)
@@ -627,8 +651,14 @@ def infer_issue_classifier(config_dict):
         texts, labels, urls = issue_classifier.read_sap_issue(need_urls=True)
         text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20, random_state=109)
         url_train, url_test, _, _ = train_test_split(urls, [0]*len(urls), test_size=0.20, random_state=109)
-    else:
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         text_train, text_test, label_train, label_test, url_train, url_test = issue_classifier.read_tensor_flow_issue(dataset_name=dataset_name, need_url_data=True)
+    else:
+        texts, labels, urls = issue_classifier.read_new_issue(dataset_name, need_urls=True)
+        text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
+                                                                          random_state=109)
+        url_train, url_test, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
+
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
     print("Converting using pretrained...")
@@ -674,14 +704,14 @@ def infer_issue_classifier(config_dict):
     testing_set = message_classifier.TextDataset(partition['test'], labels, id2input, id2mask)
     testing_generator = torch.utils.data.DataLoader(testing_set, **issue_classifier.test_params)
 
-    precision, recall, f1, y_train_probs = message_classifier.predict_test_data(model, training_generator, device, need_probs=True)
+    precision, recall, f1, y_train_probs, mcc = message_classifier.predict_test_data(model, training_generator, device, need_probs=True)
     
     with open(config_dict['issue_train_prob_path'], 'w') as file:
         writer = csv.writer(file)
         for i, prob in enumerate(y_train_probs):
             writer.writerow([url_train[i], prob])
 
-    precision, recall, f1, y_test_probs = message_classifier.predict_test_data(model, testing_generator, device, need_probs=True)
+    precision, recall, f1, y_test_probs, mcc = message_classifier.predict_test_data(model, testing_generator, device, need_probs=True)
     
     with open(config_dict['issue_test_prob_path'], 'w') as file:
         writer = csv.writer(file)
@@ -736,7 +766,11 @@ def commit_classifier_ensemble_new(config_dict):
 
     f1 = metrics.f1_score(y_pred=y_pred, y_true=Y_test)
 
+    mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=Y_test)
+
     print("F1 Commit ensemble Classifier: {}".format(f1))
+
+    print("MCC Commit ensemble Classifier: {}".format(mcc))
 
     model_path = config_dict['commit_classifier_model_path']
 
@@ -776,7 +810,11 @@ def commit_classifier_ensemble(config_dict):
 
     f1 = metrics.f1_score(y_pred=y_pred, y_true=Y_test)
 
+    mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=Y_test)
+
     print("F1 Commit ensemble Classifier: {}".format(f1))
+
+    print("MCC Commit ensemble Classifier: {}".format(mcc))
 
     model_path = config_dict['commit_classifier_model_path']
 
