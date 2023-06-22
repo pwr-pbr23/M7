@@ -127,35 +127,82 @@ def read_sap_dataset(need_urls=False):
         return messages, labels
 
 
-def read_new_dataset(dataset_name, need_urls=False):
+def read_msr_dataset(dataset_name, need_url_data=False):
     print("Reading dataset...")
-    records = []
-    with open(dataset_name, 'r') as file:
-        json_raw = file.read()
-        json_dict_list = data_loader.json.loads(json_raw)
-        for json_dict in json_dict_list:
-            records.append(data_loader.NewRecord(
-                commit_id=json_dict['id'],
-                message=json_dict['message'],
-                issue=json_dict['issue'],
-                patch=json_dict['patch'],
-                label=json_dict['label'],
-                url=json_dict['url']
-            ))
-    messages = []
-    labels = []
-    urls = []
-    for record in records:
-        messages.append(record.message)
-        labels.append(record.label)
-        url = record.url + '/commit/' + record.commit_id
-        url = url[len('https://github.com/'):]
-        urls.append(url)
+    df = pd.read_json(dataset_name)
 
-    if need_urls:
-        return messages, labels, urls
+    df = df[['id', 'message', 'issue', 'patch', 'label', 'url', 'partition']]
+
+    url_data, label_data = utils.get_data(dataset_name)
+
+    items = df.to_numpy().tolist()
+
+    url_to_msg, url_to_partition, url_to_label = {}, {}, {}
+
+    for item in items:
+        commit_id = item[0]
+        repo = item[5]
+        url = repo + '/commit/' + commit_id
+        url = url[len('https://github.com/'):]
+        partition = item[6]
+        message = item[1]
+
+        if pd.isnull(message):
+            message = ' '
+
+        label = item[4]
+        pl = 'UNKNOWN'
+
+        url_to_msg[url] = message
+        url_to_label[url] = label
+        url_to_partition[url] = partition
+
+    message_train, message_test, label_train, label_test, url_train, url_test = [], [], [], [], [], []
+
+    for i, url in enumerate(url_data['train']):
+        message_train.append(url_to_msg[url])
+        label_train.append(label_data['train'][i])
+        url_train.append(url)
+
+    for i, url in enumerate(url_data['test']):
+        message_test.append(url_to_msg[url])
+        label_test.append(label_data['test'][i])
+        url_test.append(url)
+
+    if not need_url_data:
+        return message_train, message_test, label_train, label_test
     else:
-        return messages, labels
+        return message_train, message_test, label_train, label_test, url_train, url_test
+
+    # print("Reading dataset...")
+    # records = []
+    # with open(dataset_name, 'r') as file:
+    #     json_raw = file.read()
+    #     json_dict_list = data_loader.json.loads(json_raw)
+    #     for json_dict in json_dict_list:
+    #         records.append(data_loader.MSRRecord(
+    #             commit_id=json_dict['id'],
+    #             message=json_dict['message'],
+    #             issue=json_dict['issue'],
+    #             patch=json_dict['patch'],
+    #             label=json_dict['label'],
+    #             url=json_dict['url'],
+    #             partition=json_dict['partition']
+    #         ))
+    # messages = []
+    # labels = []
+    # urls = []
+    # for record in records:
+    #     messages.append(record.message)
+    #     labels.append(record.label)
+    #     url = record.url + '/commit/' + record.commit_id
+    #     url = url[len('https://github.com/'):]
+    #     urls.append(url)
+    #
+    # if need_urls:
+    #     return messages, labels, urls
+    # else:
+    #     return messages, labels
 
 
 def get_roberta_features(tokenizer, messages, length=128):
@@ -230,9 +277,10 @@ def do_train(args):
     elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         message_train, message_test, label_train, label_test = read_tensor_flow_dataset(dataset_name)
     else:
-        messages, labels = read_new_dataset(dataset_name)
-        message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
-                                                                                random_state=109)
+        message_train, message_test, label_train, label_test = read_msr_dataset(dataset_name)
+        # messages, labels = read_msr_dataset(dataset_name)
+        # message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
+        #                                                                         random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 

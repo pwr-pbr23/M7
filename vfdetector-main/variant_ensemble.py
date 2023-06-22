@@ -571,12 +571,13 @@ def infer_message_classifier(config_dict):
         message_train, message_test, label_train, label_test, url_train, url_test = message_classifier.read_tensor_flow_dataset(dataset_name, need_url_data=True)
 
     else:
-        messages, labels, urls = message_classifier.read_new_dataset(dataset_name, need_urls=True)
+        message_train, message_test, label_train, label_test, url_train, url_test = message_classifier.read_msr_dataset(dataset_name, need_url_data=True)
+        # messages, labels, urls = message_classifier.read_msr_dataset(dataset_name, need_url_data=True)
+        #
+        # message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
+        #                                                                         random_state=109)
 
-        message_train, message_test, label_train, label_test = train_test_split(messages, labels, test_size=0.20,
-                                                                                random_state=109)
-
-        url_train, url_test, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
+        # url_train, url_test, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
@@ -654,10 +655,10 @@ def infer_issue_classifier(config_dict):
     elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         text_train, text_test, label_train, label_test, url_train, url_test = issue_classifier.read_tensor_flow_issue(dataset_name=dataset_name, need_url_data=True)
     else:
-        texts, labels, urls = issue_classifier.read_new_issue(dataset_name, need_urls=True)
-        text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
-                                                                          random_state=109)
-        url_train, url_test, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
+        text_train, text_test, label_train, label_test, url_train, url_test = issue_classifier.read_msr_issue(dataset_name, need_url_data=True)
+        # text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
+        #                                                                   random_state=109)
+        # url_train, url_test, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
@@ -747,13 +748,14 @@ def commit_classifier_ensemble_new(config_dict):
 
     for id in id_train:
         url = id_to_train_url[id]
-        if url in url_to_mes_train_prob:
+        # print(url)
+        if url in url_to_mes_train_prob and url in url_to_issue_train_prob and url in url_to_patch_train_prob:
             X_train.append([url_to_mes_train_prob[url], url_to_issue_train_prob[url], url_to_patch_train_prob[url]])
             Y_train.append(id_to_train_label[id])
     
     for id in id_test:
         url = id_to_test_url[id]
-        if url in url_to_mes_test_prob:
+        if url in url_to_mes_test_prob and url in url_to_issue_test_prob and url in url_to_patch_test_prob:
             X_test.append([url_to_mes_test_prob[url], url_to_issue_test_prob[url], url_to_patch_test_prob[url]])
             Y_test.append(id_to_test_label[id])
 

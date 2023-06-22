@@ -189,11 +189,61 @@ def get_tensor_flow_data(dataset_name):
     return url_to_diff, url_to_partition, url_to_label, url_to_pl
 
 
+def get_msr_data(dataset_name):
+    print("Reading dataset...")
+    df = pd.read_json(dataset_name)
+
+    tokenizer = RobertaTokenizer.from_pretrained("microsoft/codebert-base")
+
+    df = df[['id', 'message', 'issue', 'patch', 'label', 'url', 'partition']]
+    # df = df[['commit_id', 'repo', 'msg', 'filename', 'diff', 'label', 'partition']]
+    items = df.to_numpy().tolist()
+
+    url_to_diff = {}
+    url_to_partition = {}
+    url_to_label = {}
+    url_to_pl = {}
+
+    for item in items:
+        commit_id = item[0]
+        repo = item[5]
+        url = repo + '/commit/' + commit_id
+        url = url[len('https://github.com/'):]
+        partition = item[6]
+        # diff = item[3]
+
+        # if (pd.isnull(diff)).any():
+        #     continue
+
+        label = item[4]
+        pl = 'UNKNOWN'
+
+        if url not in url_to_diff:
+            url_to_diff[url] = []
+
+        # removed_code = utils.get_code_version(diff, False)
+        # added_code = utils.get_code_version(diff, True)
+
+        # new_removed_code_list = utils.get_line_from_code(tokenizer.sep_token, removed_code)
+        # new_added_code_list = utils.get_line_from_code(tokenizer.sep_token, added_code)
+
+        # url_to_diff[url].extend(new_removed_code_list)
+        # url_to_diff[url].extend(new_added_code_list)
+
+        url_to_partition[url] = partition
+        url_to_label[url] = label
+        url_to_pl[url] = pl
+
+    return url_to_diff, url_to_partition, url_to_label, url_to_pl
+
+
 def get_data(dataset_name):
     if dataset_name == config.SAP_DATASET_NAME:
         url_to_diff, url_to_partition, url_to_label, url_to_pl = get_sap_data(dataset_name)
-    else:
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         url_to_diff, url_to_partition, url_to_label, url_to_pl = get_tensor_flow_data(dataset_name)
+    else:
+        url_to_diff, url_to_partition, url_to_label, url_to_pl = get_msr_data(dataset_name)
 
     patch_train, patch_test = [], []
     label_train, label_test = [], []

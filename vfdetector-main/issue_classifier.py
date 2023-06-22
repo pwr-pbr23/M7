@@ -25,6 +25,7 @@ import argparse
 import config
 from variant_8_finetune_separate import get_data
 import json
+import utils
 
 
 
@@ -96,7 +97,7 @@ def read_sap_issue(dataset_name='sub_enhanced_dataset_th_100.txt', need_urls=Fal
         return issues, labels
 
 
-def read_new_issue(dataset_name='commity.json', need_urls=False):
+def read_msr_issue(dataset_name='partycje.json', need_url_data=False):
     issues, labels, urls = [], [], []
     url_to_issue = {}
 
@@ -105,13 +106,14 @@ def read_new_issue(dataset_name='commity.json', need_urls=False):
         json_raw = file.read()
         json_dict_list = data_loader.json.loads(json_raw)
         for json_dict in json_dict_list:
-            records.append(data_loader.NewRecord(
+            records.append(data_loader.MSRRecord(
                 commit_id=json_dict['id'],
                 message=json_dict['message'],
                 issue=json_dict['issue'],
                 patch=json_dict['patch'],
                 label=json_dict['label'],
-                url=json_dict['url']
+                url=json_dict['url'],
+                partition=json_dict['partition']
             ))
     options = ExperimentOption()
 
@@ -132,10 +134,28 @@ def read_new_issue(dataset_name='commity.json', need_urls=False):
 
     print("Finish preprocessing")
 
-    if need_urls:
-        return issues, labels, urls
+    patch_data, label_data, url_data = get_data(dataset_name)
+    text_train, text_test, label_train, label_test, url_train, url_test = [], [], [], [], [], []
+
+    for i, url in enumerate(url_data['train']):
+        text_train.append(url_to_issue[url])
+        label_train.append(label_data['train'][i])
+        url_train.append(url)
+
+    for i, url in enumerate(url_data['test']):
+        text_test.append(url_to_issue[url])
+        label_test.append(label_data['test'][i])
+        url_test.append(url)
+
+    if not need_url_data:
+        return text_train, text_test, label_train, label_test
     else:
-        return issues, labels
+        return text_train, text_test, label_train, label_test, url_train, url_test
+
+    # if need_urls:
+    #     return issues, labels, urls
+    # else:
+    #     return issues, labels
 
 
 def read_issue():
@@ -217,9 +237,10 @@ def do_train(args):
     elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
         text_train, text_test, label_train, label_test = read_tensor_flow_issue(dataset_name)
     else:
-        texts, labels = read_new_issue(dataset_name)
-        text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
-                                                                          random_state=109)
+        text_train, text_test, label_train, label_test = read_msr_issue(dataset_name)
+        # texts, labels = read_msr_issue(dataset_name)
+        # text_train, text_test, label_train, label_test = train_test_split(texts, labels, test_size=0.20,
+        #                                                                   random_state=109)
 
     tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 

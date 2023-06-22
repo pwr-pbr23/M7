@@ -249,35 +249,37 @@ def get_tensor_flow_data(dataset_name):
     return url_to_diff, url_to_partition, url_to_label, url_to_pl
 
 
-def get_new_data(dataset_name):
+def get_msr_data(dataset_name):
     print("Reading dataset...")
     df = pd.read_json(dataset_name)
-    df = df[['id', 'message', 'patch', 'label', 'url']]
+    df = df[['id', 'message', 'issue', 'patch', 'label', 'url', 'partition']]
     items = df.to_numpy().tolist()
-    partitions = ['train', 'test']
+    # partitions = ['train', 'test']
 
     url_to_diff = {}
     url_to_partition = {}
     url_to_label = {}
     url_to_pl = {}
 
-    train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
+    # train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
 
     for item in items:
-        for patch in item[2]:
+        for patch in item[3]:
             commit_id = item[0]
-            repo = item[4]
+            repo = item[5]
             url = repo + '/commit/' + commit_id
-            if item in train_items:
-                partition = partitions[0]
-            else:
-                partition = partitions[1]
+            url = url[len('https://github.com/'):]
+            # if item in train_items:
+            #     partition = partitions[0]
+            # else:
+            #     partition = partitions[1]
+            partition = item[6]
             diff = patch
 
             if pd.isnull(diff):
                 continue
 
-            label = item[3]
+            label = item[4]
             pl = "UNKNOWN"
 
             if url not in url_to_diff:
@@ -298,7 +300,7 @@ def get_data(dataset_name):
     elif dataset_name == 'tf_vuln_dataset.csv':
         url_to_diff, url_to_partition, url_to_label, url_to_pl = get_tensor_flow_data(dataset_name)
     else:
-        url_to_diff, url_to_partition, url_to_label, url_to_pl = get_new_data(dataset_name)
+        url_to_diff, url_to_partition, url_to_label, url_to_pl = get_msr_data(dataset_name)
 
     patch_train, patch_test = [], []
     label_train, label_test = [], []

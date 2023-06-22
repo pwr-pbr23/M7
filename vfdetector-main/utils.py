@@ -83,13 +83,13 @@ def get_sap_data(dataset_name):
     return url_train, url_test, label_train, label_test, url_to_label, url_to_pl
 
 
-def get_new_data(dataset_name):
+def get_msr_data(dataset_name):
     print("Reading dataset...")
     df = pd.read_json(dataset_name)
-    df = df[['id', 'message', 'patch', 'label', 'url']]
+    df = df[['id', 'message', 'issue', 'patch', 'label', 'url', 'partition']]
     items = df.to_numpy().tolist()
-    partitions = ['train', 'test']
-    train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
+    # partitions = ['train', 'test']
+    # train_items, test_items = train_test_split(items, test_size=0.20, random_state=109)
 
     url_train, url_test = [], []
     label_train, label_test = [], []
@@ -97,14 +97,16 @@ def get_new_data(dataset_name):
     url_to_label = {}
     for item in tqdm(items):
         commit_id = item[0]
-        repo = item[4]
+        repo = item[5]
         url = repo + '/commit/' + commit_id
-        if item in train_items:
-            partition = partitions[0]
-        else:
-            partition = partitions[1]
+        url = url[len('https://github.com/'):]
+        partition = item[6]
+        # if item in train_items:
+        #     partition = partitions[0]
+        # else:
+        #     partition = partitions[1]
         pl = "UNKNOWN"
-        label = item[3]
+        label = item[4]
         url_to_pl[url] = pl
         url_to_label[url] = label
         if partition == 'train':
@@ -182,7 +184,7 @@ def get_data(dataset_name, need_pl=False):
         url_train, url_test, label_train, label_test, url_to_label, url_to_pl = get_tensor_flow_data(dataset_name)
 
     else:
-        url_train, url_test, label_train, label_test, url_to_label, url_to_pl = get_new_data(dataset_name)
+        url_train, url_test, label_train, label_test, url_to_label, url_to_pl = get_msr_data(dataset_name)
 
     url_data = {'train': url_train, 'test': url_test}
     label_data = {'train': label_train, 'test': label_test}
