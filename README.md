@@ -64,3 +64,24 @@ To train patch classifier:
 To run ensemble classifier: 
 
 `python variant_ensemble.py --config_file sap_dataset.conf`
+
+For MSR dataset:
+
+To train message classifier: 
+
+`python message_classifier.py --dataset_path partycje.json --model_path model/msr_message_classifier.sav`
+
+To train issue classifier: 
+
+`python issue_classifier.py --dataset_path partycje.json --model_path model/msr_issue_classifier.sav`
+
+To finetune CodeBERT for patch classifier: 
+`python vulfixminer_finetune.py --dataset_path partycje.json --finetune_model_path model/msr_patch_vulfixminer_finetuned_model.sav`
+
+To train patch classifier: 
+
+`python vulfixminer.py --dataset_path partycje.json --model_path model/msr_patch_vulfixminer.sav --finetune_model_path model/msr_patch_vulfixminer_finetuned_model.sav --train_prob_path probs/msr_patch_vulfixminer_train_prob.txt --test_prob_path probs/msr_patch_vulfixminer_test_prob.txt`
+
+To run ensemble classifier: 
+
+`python variant_ensemble.py --config_file msr_dataset.conf`
