@@ -862,13 +862,13 @@ def commit_classifier_ensemble_new(config_dict):
         url = id_to_train_url[id]
         # print(url)
         if url in url_to_mes_train_prob and url in url_to_issue_train_prob and url in url_to_patch_train_prob:
-            X_train.append([url_to_mes_train_prob[url], url_to_sent_train_prob[url],  url_to_issue_train_prob[url], url_to_patch_train_prob[url]])
+            X_train.append([url_to_mes_train_prob[url],  url_to_issue_train_prob[url], url_to_patch_train_prob[url]])
             Y_train.append(id_to_train_label[id])
     
     for id in id_test:
         url = id_to_test_url[id]
         if url in url_to_mes_test_prob and url in url_to_issue_test_prob and url in url_to_patch_test_prob:
-            X_test.append([url_to_mes_test_prob[url], url_to_sent_test_prob[url], url_to_issue_test_prob[url], url_to_patch_test_prob[url]])
+            X_test.append([url_to_mes_test_prob[url], url_to_issue_test_prob[url], url_to_patch_test_prob[url]])
             Y_test.append(id_to_test_label[id])
 
     print("Training")
@@ -892,9 +892,6 @@ def commit_classifier_ensemble_new(config_dict):
 
 
 def commit_classifier_ensemble_sentimental(config_dict):
-    url_to_mes_train_prob = read_prob_from_file(config_dict['message_train_prob_path'])
-    url_to_mes_test_prob = read_prob_from_file(config_dict['message_test_prob_path'])
-
     url_to_sent_train_prob = read_prob_from_file(config_dict['sentimental_train_prob_path'])
     url_to_sent_test_prob = read_prob_from_file(config_dict['sentimental_test_prob_path'])
 
@@ -911,13 +908,13 @@ def commit_classifier_ensemble_sentimental(config_dict):
 
     for id in id_train:
         url = id_to_train_url[id]
-        X_train.append([url_to_mes_train_prob[url], url_to_sent_train_prob[url], url_to_issue_train_prob[url],
+        X_train.append([url_to_sent_train_prob[url], url_to_issue_train_prob[url],
                         url_to_patch_train_prob[url]])
         Y_train.append(id_to_train_label[id])
 
     for id in id_test:
         url = id_to_test_url[id]
-        X_test.append([url_to_mes_test_prob[url], url_to_sent_test_prob[url], url_to_issue_test_prob[url],
+        X_test.append([url_to_sent_test_prob[url], url_to_issue_test_prob[url],
                        url_to_patch_test_prob[url]])
         Y_test.append(id_to_test_label[id])
 
@@ -1075,6 +1072,11 @@ if __name__ == '__main__':
                         type=str,
                         required=True,
                         help='name of config file')
+    parser.add_argument('--use_sentimental',
+                        type=bool,
+                        required=False,
+                        help='use sentimental classifier over message')
+
     args = parser.parse_args()
     config_file_name = args.config_file
     config_parser = configparser.RawConfigParser()
@@ -1094,7 +1096,13 @@ if __name__ == '__main__':
     # commit_classifier_ensemble(config_dict)
 
     # new function after replacing patch classifier
-    commit_classifier_ensemble(config_dict)
+
+    if args.use_sentimental:
+        print("// Im using sentimental classifier")
+        commit_classifier_ensemble_sentimental(config_dict)
+    else:
+        print("// Im using message classifier")
+        commit_classifier_ensemble(config_dict)
 
     # visualize_result(config_dict)
 
