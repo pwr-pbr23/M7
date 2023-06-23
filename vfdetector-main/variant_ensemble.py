@@ -1,4 +1,6 @@
+import numpy as np
 import torch
+from sklearn.metrics import f1_score, matthews_corrcoef
 from torch import nn as nn
 import os
 import csv
@@ -6,7 +8,8 @@ from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 from torch import cuda
 import pandas as pd
-from transformers import RobertaTokenizer, RobertaConfig, RobertaModel, RobertaForSequenceClassification
+from transformers import RobertaTokenizer, RobertaConfig, RobertaModel, RobertaForSequenceClassification, AutoTokenizer, \
+    BertForSequenceClassification, TrainingArguments, Trainer
 from patch_entities import VariantOneDataset, VariantTwoDataset, VariantFiveDataset, VariantSixDataset, VariantThreeDataset, \
     VariantSevenDataset, VariantEightDataset
 from model import VariantOneClassifier, VariantTwoClassifier, VariantFiveClassifier, VariantSixClassifier, \
@@ -640,6 +643,112 @@ def infer_message_classifier(config_dict):
             writer.writerow([url_test[i], prob])
 
 
+def infer_sentimental_classifier_tf(config_dict):
+    df = pd.read_csv('tf_vuln_dataset.csv')
+
+    messages = df['msg'].tolist()
+    labels = df['label'].tolist()
+    ids = df['commit_id'].tolist()
+    repos = df['repo'].tolist()
+    data_splits = df['partition'].tolist()
+
+    train_messages = [m for m, s in zip(messages, data_splits) if s == 'train']
+    train_labels = [l for l, s in zip(labels, data_splits) if s == 'train']
+    train_ids = [u for u, s in zip(ids, data_splits) if s == 'train']
+    train_repos = [r for r, s in zip(repos, data_splits) if s == 'train']
+
+    test_messages = [m for m, s in zip(messages, data_splits) if s == 'test']
+    test_labels = [l for l, s in zip(labels, data_splits) if s == 'test']
+    test_ids = [u for u, s in zip(ids, data_splits) if s == 'test']
+    test_repos = [r for r, s in zip(repos, data_splits) if s == 'test']
+
+    train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
+    test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
+
+    tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
+
+    train_encodings = tokenizer(train_messages, truncation=True, padding=True)
+    test_encodings = tokenizer(test_messages, truncation=True, padding=True)
+
+    class CommitDataset(Dataset):
+        def __init__(self, encodings, labels):
+            self.encodings = encodings
+            self.labels = labels
+
+        def __getitem__(self, idx):
+            item = {key: torch.tensor(val[idx]) for key, val in self.encodings.items()}
+            item['labels'] = torch.tensor(self.labels[idx])
+            return item
+
+        def __len__(self):
+            return len(self.labels)
+
+    train_dataset = CommitDataset(train_encodings, train_labels)
+    test_dataset = CommitDataset(test_encodings, test_labels)
+
+    model = BertForSequenceClassification.from_pretrained('bert-base-uncased')
+
+    training_args = TrainingArguments(
+        output_dir='./results',
+        num_train_epochs=3,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=64,
+        warmup_steps=500,
+        weight_decay=0.01,
+        logging_dir='./logs',
+        logging_steps=10,
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset
+    )
+
+    trainer.train()
+
+    def compute_metrics(pred):
+        label = pred.label_ids
+        preds = pred.predictions.argmax(-1)
+        f1 = f1_score(label, preds, average='weighted')
+        mcc = matthews_corrcoef(label, preds)
+        return {
+            'f1': f1,
+            'mcc': mcc,
+        }
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        compute_metrics=compute_metrics,
+    )
+
+    trainer.evaluate()
+
+    train_predictions = trainer.predict(train_dataset)
+    test_predictions = trainer.predict(test_dataset)
+
+    train_probabilities = np.exp(train_predictions.predictions) / np.exp(train_predictions.predictions).sum(-1,
+                                                                                                            keepdims=True)
+    test_probabilities = np.exp(test_predictions.predictions) / np.exp(test_predictions.predictions).sum(-1,
+                                                                                                         keepdims=True)
+
+    train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
+    train_probabilities_with_urls = np.column_stack(
+        (np.array(train_urls), train_probabilities[:, 1]))  # Select the second column for probabilities
+
+    test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
+    test_probabilities_with_urls = np.column_stack(
+        (np.array(test_urls), test_probabilities[:, 1]))  # Select the second column for probabilities
+
+    np.savetxt(config_dict['sentimental_train_prob_path'], train_probabilities_with_urls, delimiter=',', fmt='%s')
+
+    np.savetxt(config_dict['sentimental_test_prob_path'], test_probabilities_with_urls, delimiter=',', fmt='%s')
+
+
 def infer_issue_classifier(config_dict):
 
     model = RobertaForSequenceClassification.from_pretrained('roberta-base', num_labels=2)
@@ -734,6 +843,9 @@ def commit_classifier_ensemble_new(config_dict):
     url_to_mes_train_prob = read_prob_from_file(config_dict['message_train_prob_path'])
     url_to_mes_test_prob = read_prob_from_file(config_dict['message_test_prob_path'])
 
+    url_to_sent_train_prob = read_prob_from_file(config_dict['sentimental_train_prob_path'])
+    url_to_sent_test_prob = read_prob_from_file(config_dict['sentimental_test_prob_path'])
+
     url_to_issue_train_prob = read_prob_from_file(config_dict['issue_train_prob_path'])
     url_to_issue_test_prob = read_prob_from_file(config_dict['issue_test_prob_path'])
 
@@ -750,16 +862,65 @@ def commit_classifier_ensemble_new(config_dict):
         url = id_to_train_url[id]
         # print(url)
         if url in url_to_mes_train_prob and url in url_to_issue_train_prob and url in url_to_patch_train_prob:
-            X_train.append([url_to_mes_train_prob[url], url_to_issue_train_prob[url], url_to_patch_train_prob[url]])
+            X_train.append([url_to_mes_train_prob[url], url_to_sent_train_prob[url],  url_to_issue_train_prob[url], url_to_patch_train_prob[url]])
             Y_train.append(id_to_train_label[id])
     
     for id in id_test:
         url = id_to_test_url[id]
         if url in url_to_mes_test_prob and url in url_to_issue_test_prob and url in url_to_patch_test_prob:
-            X_test.append([url_to_mes_test_prob[url], url_to_issue_test_prob[url], url_to_patch_test_prob[url]])
+            X_test.append([url_to_mes_test_prob[url], url_to_sent_test_prob[url], url_to_issue_test_prob[url], url_to_patch_test_prob[url]])
             Y_test.append(id_to_test_label[id])
 
     print("Training")
+    ensemble_classifier = LogisticRegression()
+
+    ensemble_classifier.fit(X=X_train, y=Y_train)
+
+    y_pred = ensemble_classifier.predict(X=X_test)
+
+    f1 = metrics.f1_score(y_pred=y_pred, y_true=Y_test)
+
+    mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=Y_test)
+
+    print("F1 Commit ensemble Classifier: {}".format(f1))
+
+    print("MCC Commit ensemble Classifier: {}".format(mcc))
+
+    model_path = config_dict['commit_classifier_model_path']
+
+    pickle.dump(ensemble_classifier, open(model_path, 'wb'))
+
+
+def commit_classifier_ensemble_sentimental(config_dict):
+    url_to_mes_train_prob = read_prob_from_file(config_dict['message_train_prob_path'])
+    url_to_mes_test_prob = read_prob_from_file(config_dict['message_test_prob_path'])
+
+    url_to_sent_train_prob = read_prob_from_file(config_dict['sentimental_train_prob_path'])
+    url_to_sent_test_prob = read_prob_from_file(config_dict['sentimental_test_prob_path'])
+
+    url_to_issue_train_prob = read_prob_from_file(config_dict['issue_train_prob_path'])
+    url_to_issue_test_prob = read_prob_from_file(config_dict['issue_test_prob_path'])
+
+    url_to_patch_train_prob = read_prob_from_file(config_dict['ensemble_train_prob_path'])
+    url_to_patch_test_prob = read_prob_from_file(config_dict['ensemble_test_prob_path'])
+
+    id_train, id_to_train_label, id_to_train_url = get_dataset_info('train')
+    id_test, id_to_test_label, id_to_test_url = get_dataset_info('test')
+
+    X_train, Y_train, X_test, Y_test = [], [], [], []
+
+    for id in id_train:
+        url = id_to_train_url[id]
+        X_train.append([url_to_mes_train_prob[url], url_to_sent_train_prob[url], url_to_issue_train_prob[url],
+                        url_to_patch_train_prob[url]])
+        Y_train.append(id_to_train_label[id])
+
+    for id in id_test:
+        url = id_to_test_url[id]
+        X_test.append([url_to_mes_test_prob[url], url_to_sent_test_prob[url], url_to_issue_test_prob[url],
+                       url_to_patch_test_prob[url]])
+        Y_test.append(id_to_test_label[id])
+
     ensemble_classifier = LogisticRegression()
 
     ensemble_classifier.fit(X=X_train, y=Y_train)
@@ -796,12 +957,14 @@ def commit_classifier_ensemble(config_dict):
 
     for id in id_train:
         url = id_to_train_url[id]
-        X_train.append([url_to_mes_train_prob[url], url_to_issue_train_prob[url], url_to_patch_train_prob[url]])
+        X_train.append([url_to_mes_train_prob[url], url_to_issue_train_prob[url],
+                        url_to_patch_train_prob[url]])
         Y_train.append(id_to_train_label[id])
     
     for id in id_test:
         url = id_to_test_url[id]
-        X_test.append([url_to_mes_test_prob[url], url_to_issue_test_prob[url], url_to_patch_test_prob[url]])
+        X_test.append([url_to_mes_test_prob[url], url_to_issue_test_prob[url],
+                       url_to_patch_test_prob[url]])
         Y_test.append(id_to_test_label[id])
 
     ensemble_classifier = LogisticRegression()
@@ -926,11 +1089,12 @@ if __name__ == '__main__':
 
     infer_message_classifier(config_dict)
     infer_issue_classifier(config_dict)
+    infer_sentimental_classifier_tf(config_dict)
 
     # commit_classifier_ensemble(config_dict)
 
     # new function after replacing patch classifier
-    commit_classifier_ensemble_new(config_dict)
+    commit_classifier_ensemble(config_dict)
 
     # visualize_result(config_dict)
 
