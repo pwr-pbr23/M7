@@ -11,7 +11,7 @@ Project based on [VulCurator: A Vulnerability-Fixing Commit Detector](https://ww
 
 [Team Policies and Team Expectations Agreement](https://docs.google.com/document/d/1NiMzeDmkhrVOwA-ww2HNvBGpNvi6pWlYKUMZcJOjwcc/edit?fbclid=IwAR0SU23NwHS6iq3GWpPhtfsw6Alw2vJIvw-Ev0GwSviptOUNEaUJNSfjK6I)
 
-[GoogleColab](https://colab.research.google.com/drive/1AECPUDhOZEPUq2euqjAt7CRaEUZHo-O8#scrollTo=RcjCkM9xGdpe)
+[GoogleColab](https://colab.research.google.com/drive/1SSc8f71Jw0YD4oJljd2FW_IhlAOl8eme?usp=sharing)
 
 Progress is tracked in Github Projects
 
