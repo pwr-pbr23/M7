@@ -756,14 +756,14 @@ def infer_sentimental_classifier(config_dict):
     with open(config_dict['sentimental_train_prob_path'], 'w') as file:
         writer = csv.writer(file)
         for i, prob in enumerate(train_probabilities):
-            writer.writerow([train_urls[i], prob])
+            writer.writerow([train_urls[i], prob[1]])
 
 
 
     with open(config_dict['sentimental_test_prob_path'], 'w') as file:
         writer = csv.writer(file)
         for i, prob in enumerate(test_probabilities):
-            writer.writerow([test_urls[i], prob])
+            writer.writerow([test_urls[i], prob[1]])
 
     # train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
     # train_probabilities_with_urls = np.column_stack(
@@ -1064,8 +1064,8 @@ def commit_classifier_ensemble_sentimental(config_dict):
     url_to_issue_train_prob = read_prob_from_file(config_dict['issue_train_prob_path'])
     url_to_issue_test_prob = read_prob_from_file(config_dict['issue_test_prob_path'])
 
-    url_to_patch_train_prob = read_prob_from_file(config_dict['ensemble_train_prob_path'])
-    url_to_patch_test_prob = read_prob_from_file(config_dict['ensemble_test_prob_path'])
+    url_to_patch_train_prob = read_prob_from_file(config_dict['patch_train_prob_path'])
+    url_to_patch_test_prob = read_prob_from_file(config_dict['patch_test_prob_path'])
 
     id_train, id_to_train_label, id_to_train_url = get_dataset_info('train')
     id_test, id_to_test_label, id_to_test_url = get_dataset_info('test')
@@ -1110,8 +1110,8 @@ def commit_classifier_ensemble_sentimental_twitter(config_dict):
     url_to_issue_train_prob = read_prob_from_file(config_dict['issue_train_prob_path'])
     url_to_issue_test_prob = read_prob_from_file(config_dict['issue_test_prob_path'])
 
-    url_to_patch_train_prob = read_prob_from_file(config_dict['ensemble_train_prob_path'])
-    url_to_patch_test_prob = read_prob_from_file(config_dict['ensemble_test_prob_path'])
+    url_to_patch_train_prob = read_prob_from_file(config_dict['patch_train_prob_path'])
+    url_to_patch_test_prob = read_prob_from_file(config_dict['patch_test_prob_path'])
 
     id_train, id_to_train_label, id_to_train_url = get_dataset_info('train')
     id_test, id_to_test_label, id_to_test_url = get_dataset_info('test')
@@ -1306,7 +1306,7 @@ if __name__ == '__main__':
 
     infer_issue_classifier(config_dict)
 
-    # commit_classifier_ensemble(config_dict)
+    commit_classifier_ensemble(config_dict)
     # new function after replacing patch classifier
 
     if args.use_sentimental:
@@ -1320,7 +1320,7 @@ if __name__ == '__main__':
     else:
         print("// Im using message classifier")
         infer_message_classifier(config_dict)
-        commit_classifier_ensemble(config_dict)
+        commit_classifier_ensemble_new(config_dict)
 
     # visualize_result(config_dict)
 
