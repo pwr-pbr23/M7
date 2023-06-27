@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from sklearn.metrics import f1_score, matthews_corrcoef
+from sklearn.metrics import f1_score, matthews_corrcoef, precision_recall_fscore_support, accuracy_score
 from torch import nn as nn
 import os
 import csv
@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from torch import cuda
 import pandas as pd
 from transformers import RobertaTokenizer, RobertaConfig, RobertaModel, RobertaForSequenceClassification, AutoTokenizer, \
-    BertForSequenceClassification, TrainingArguments, Trainer
+    BertForSequenceClassification, TrainingArguments, Trainer, AutoModelForSequenceClassification
 from patch_entities import VariantOneDataset, VariantTwoDataset, VariantFiveDataset, VariantSixDataset, VariantThreeDataset, \
     VariantSevenDataset, VariantEightDataset
 from model import VariantOneClassifier, VariantTwoClassifier, VariantFiveClassifier, VariantSixClassifier, \
@@ -643,27 +643,44 @@ def infer_message_classifier(config_dict):
             writer.writerow([url_test[i], prob])
 
 
-def infer_sentimental_classifier_tf(config_dict):
-    df = pd.read_csv('tf_vuln_dataset.csv')
+def infer_sentimental_classifier(config_dict):
 
-    messages = df['msg'].tolist()
-    labels = df['label'].tolist()
-    ids = df['commit_id'].tolist()
-    repos = df['repo'].tolist()
-    data_splits = df['partition'].tolist()
+    if dataset_name == config.SAP_DATASET_NAME:
+        messages, labels, urls = message_classifier.read_sap_dataset(need_urls=True)
 
-    train_messages = [m for m, s in zip(messages, data_splits) if s == 'train']
-    train_labels = [l for l, s in zip(labels, data_splits) if s == 'train']
-    train_ids = [u for u, s in zip(ids, data_splits) if s == 'train']
-    train_repos = [r for r, s in zip(repos, data_splits) if s == 'train']
+        train_messages, test_messages, train_labels, test_labels = train_test_split(messages, labels, test_size=0.20,
+                                                                                random_state=109)
 
-    test_messages = [m for m, s in zip(messages, data_splits) if s == 'test']
-    test_labels = [l for l, s in zip(labels, data_splits) if s == 'test']
-    test_ids = [u for u, s in zip(ids, data_splits) if s == 'test']
-    test_repos = [r for r, s in zip(repos, data_splits) if s == 'test']
+        train_urls, test_urls, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
 
-    train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
-    test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
+        train_messages, test_messages, train_labels, test_labels, train_urls, test_urls = message_classifier.read_tensor_flow_dataset(
+            dataset_name, need_url_data=True)
+
+    else:
+        train_messages, test_messages, train_labels, test_labels, train_urls, test_urls = message_classifier.read_msr_dataset(
+            dataset_name, need_url_data=True)
+
+    # df = pd.read_csv('tf_vuln_dataset.csv')
+    #
+    # messages = df['msg'].tolist()
+    # labels = df['label'].tolist()
+    # ids = df['commit_id'].tolist()
+    # repos = df['repo'].tolist()
+    # data_splits = df['partition'].tolist()
+    #
+    # train_messages = [m for m, s in zip(messages, data_splits) if s == 'train']
+    # train_labels = [l for l, s in zip(labels, data_splits) if s == 'train']
+    # train_ids = [u for u, s in zip(ids, data_splits) if s == 'train']
+    # train_repos = [r for r, s in zip(repos, data_splits) if s == 'train']
+    #
+    # test_messages = [m for m, s in zip(messages, data_splits) if s == 'test']
+    # test_labels = [l for l, s in zip(labels, data_splits) if s == 'test']
+    # test_ids = [u for u, s in zip(ids, data_splits) if s == 'test']
+    # test_repos = [r for r, s in zip(repos, data_splits) if s == 'test']
+    #
+    # train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
+    # test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
 
     tokenizer = AutoTokenizer.from_pretrained('distilbert-base-uncased')
 
@@ -734,19 +751,168 @@ def infer_sentimental_classifier_tf(config_dict):
     train_probabilities = np.exp(train_predictions.predictions) / np.exp(train_predictions.predictions).sum(-1,
                                                                                                             keepdims=True)
     test_probabilities = np.exp(test_predictions.predictions) / np.exp(test_predictions.predictions).sum(-1,
-                                                                                                         keepdims=True)
+                                                                                                keepdims=True)
 
-    train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
-    train_probabilities_with_urls = np.column_stack(
-        (np.array(train_urls), train_probabilities[:, 1]))  # Select the second column for probabilities
+    with open(config_dict['sentimental_train_prob_path'], 'w') as file:
+        writer = csv.writer(file)
+        for i, prob in enumerate(train_probabilities):
+            writer.writerow([train_urls[i], prob])
 
-    test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
-    test_probabilities_with_urls = np.column_stack(
-        (np.array(test_urls), test_probabilities[:, 1]))  # Select the second column for probabilities
 
-    np.savetxt(config_dict['sentimental_train_prob_path'], train_probabilities_with_urls, delimiter=',', fmt='%s')
 
-    np.savetxt(config_dict['sentimental_test_prob_path'], test_probabilities_with_urls, delimiter=',', fmt='%s')
+    with open(config_dict['sentimental_test_prob_path'], 'w') as file:
+        writer = csv.writer(file)
+        for i, prob in enumerate(test_probabilities):
+            writer.writerow([test_urls[i], prob])
+
+    # train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
+    # train_probabilities_with_urls = np.column_stack(
+    #     (np.array(train_urls), train_probabilities[:, 1]))  # Select the second column for probabilities
+    #
+    # test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
+    # test_probabilities_with_urls = np.column_stack(
+    #     (np.array(test_urls), test_probabilities[:, 1]))  # Select the second column for probabilities
+    #
+    # np.savetxt(config_dict['sentimental_train_prob_path'], train_probabilities_with_urls, delimiter=',', fmt='%s')
+    #
+    # np.savetxt(config_dict['sentimental_test_prob_path'], test_probabilities_with_urls, delimiter=',', fmt='%s')
+
+
+def infer_sentimental_twitter_classifier(config_dict):
+
+    if dataset_name == config.SAP_DATASET_NAME:
+        messages, labels, urls = message_classifier.read_sap_dataset(need_urls=True)
+
+        train_messages, test_messages, train_labels, test_labels = train_test_split(messages, labels, test_size=0.20,
+                                                                                random_state=109)
+
+        train_urls, test_urls, _, _ = train_test_split(urls, [0] * len(urls), test_size=0.20, random_state=109)
+
+    elif dataset_name == config.TENSOR_FLOW_DATASET_NAME:
+        train_messages, test_messages, train_labels, test_labels, train_urls, test_urls = message_classifier.read_tensor_flow_dataset(
+            dataset_name, need_url_data=True)
+
+    else:
+        train_messages, test_messages, train_labels, test_labels, train_urls, test_urls = message_classifier.read_msr_dataset(
+            dataset_name, need_url_data=True)
+
+    # df = pd.read_csv('tf_vuln_dataset.csv')
+    #
+    # messages = df['msg'].tolist()
+    # labels = df['label'].tolist()
+    # ids = df['commit_id'].tolist()
+    # repos = df['repo'].tolist()
+    # data_splits = df['partition'].tolist()
+    #
+    # train_messages = [m for m, s in zip(messages, data_splits) if s == 'train']
+    # train_labels = [l for l, s in zip(labels, data_splits) if s == 'train']
+    # train_ids = [u for u, s in zip(ids, data_splits) if s == 'train']
+    # train_repos = [r for r, s in zip(repos, data_splits) if s == 'train']
+    #
+    # test_messages = [m for m, s in zip(messages, data_splits) if s == 'test']
+    # test_labels = [l for l, s in zip(labels, data_splits) if s == 'test']
+    # test_ids = [u for u, s in zip(ids, data_splits) if s == 'test']
+    # test_repos = [r for r, s in zip(repos, data_splits) if s == 'test']
+    #
+    # train_urls = [r + '/commit/' + i for r, i in zip(train_repos, train_ids)]
+    # test_urls = [r + '/commit/' + i for r, i in zip(test_repos, test_ids)]
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    tokenizer = AutoTokenizer.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment')
+    model = AutoModelForSequenceClassification.from_pretrained('cardiffnlp/twitter-roberta-base-sentiment')
+    model.to(device)
+
+    class GitCommitDataset(Dataset):
+        def __init__(self, texts, labels, tokenizer, max_length):
+            self.texts = texts
+            self.labels = labels
+            self.tokenizer = tokenizer
+            self.max_length = max_length
+
+        def __len__(self):
+            return len(self.texts)
+
+        def __getitem__(self, idx):
+            text = self.texts[idx]
+            inputs = self.tokenizer.encode_plus(text, truncation=True, padding="max_length", max_length=self.max_length,
+                                                return_tensors="pt")
+            input_ids = inputs["input_ids"].squeeze()
+            attention_mask = inputs["attention_mask"].squeeze()
+            return {"input_ids": input_ids, "attention_mask": attention_mask, "labels": self.labels[idx]}
+
+    max_length = 512
+    train_dataset = GitCommitDataset(train_messages, train_labels, tokenizer, max_length)
+    test_dataset = GitCommitDataset(test_messages, test_labels, tokenizer, max_length)
+
+    def multiclass_mcc(y_true, y_pred):
+        class_labels = np.unique(y_true)
+        mcc = 0
+        for label in class_labels:
+            binary_y_true = (y_true == label)
+            binary_y_pred = (y_pred == label)
+            mcc += matthews_corrcoef(binary_y_true, binary_y_pred)
+        return mcc / len(class_labels)
+
+    def compute_metrics(pred):
+        labels = pred.label_ids
+        preds = pred.predictions.argmax(-1)
+        precision, recall, f1, _ = precision_recall_fscore_support(labels, preds, average='weighted')
+        mcc = multiclass_mcc(labels, preds)
+        acc = accuracy_score(labels, preds)
+        return {
+            'accuracy': acc,
+            'f1': f1,
+            'precision': precision,
+            'recall': recall,
+            'mcc': mcc
+        }
+
+    training_args = TrainingArguments(
+        output_dir='./results',
+        num_train_epochs=3,
+        per_device_train_batch_size=16,
+        per_device_eval_batch_size=64,
+        warmup_steps=500,
+        weight_decay=0.01,
+        evaluation_strategy='steps',
+        save_steps=100,
+        eval_steps=10,
+        logging_steps=10,
+        load_best_model_at_end=True,
+        metric_for_best_model='f1',
+        greater_is_better=True,
+    )
+
+    trainer = Trainer(
+        model=model,
+        args=training_args,
+        train_dataset=train_dataset,
+        eval_dataset=test_dataset,
+        compute_metrics=compute_metrics,
+    )
+
+    trainer.train()
+
+    eval_result = trainer.evaluate(eval_dataset=test_dataset)
+    print(eval_result)
+
+    def softmax(x):
+        e_x = np.exp(x - np.max(x))
+        return e_x / e_x.sum(axis=0)
+
+    train_result = trainer.predict(train_dataset)
+    test_result = trainer.predict(test_dataset)
+
+    train_scores = softmax(train_result.predictions)[:, 1]
+    test_scores = softmax(test_result.predictions)[:, 1]
+
+    train_df = pd.DataFrame({'ids': train_urls, 'scores': train_scores})
+    test_df = pd.DataFrame({'ids': test_urls, 'scores': test_scores})
+
+    train_df.to_csv(config_dict['sentimental_twitter_train_prob_path'], index=False, header=None, sep=',', float_format='%.9f')
+    test_df.to_csv(config_dict['sentimental_twitter_test_prob_path'], index=False, header=None, sep=',', float_format='%.9f')
+
 
 
 def infer_issue_classifier(config_dict):
@@ -937,6 +1103,51 @@ def commit_classifier_ensemble_sentimental(config_dict):
     pickle.dump(ensemble_classifier, open(model_path, 'wb'))
 
 
+def commit_classifier_ensemble_sentimental_twitter(config_dict):
+    url_to_sent_train_prob = read_prob_from_file(config_dict['sentimental_twitter_train_prob_path'])
+    url_to_sent_test_prob = read_prob_from_file(config_dict['sentimental_twitter_test_prob_path'])
+
+    url_to_issue_train_prob = read_prob_from_file(config_dict['issue_train_prob_path'])
+    url_to_issue_test_prob = read_prob_from_file(config_dict['issue_test_prob_path'])
+
+    url_to_patch_train_prob = read_prob_from_file(config_dict['ensemble_train_prob_path'])
+    url_to_patch_test_prob = read_prob_from_file(config_dict['ensemble_test_prob_path'])
+
+    id_train, id_to_train_label, id_to_train_url = get_dataset_info('train')
+    id_test, id_to_test_label, id_to_test_url = get_dataset_info('test')
+
+    X_train, Y_train, X_test, Y_test = [], [], [], []
+
+    for id in id_train:
+        url = id_to_train_url[id]
+        X_train.append([url_to_sent_train_prob[url], url_to_issue_train_prob[url],
+                        url_to_patch_train_prob[url]])
+        Y_train.append(id_to_train_label[id])
+
+    for id in id_test:
+        url = id_to_test_url[id]
+        X_test.append([url_to_sent_test_prob[url], url_to_issue_test_prob[url],
+                       url_to_patch_test_prob[url]])
+        Y_test.append(id_to_test_label[id])
+
+    ensemble_classifier = LogisticRegression()
+
+    ensemble_classifier.fit(X=X_train, y=Y_train)
+
+    y_pred = ensemble_classifier.predict(X=X_test)
+
+    f1 = metrics.f1_score(y_pred=y_pred, y_true=Y_test)
+
+    mcc = metrics.matthews_corrcoef(y_pred=y_pred, y_true=Y_test)
+
+    print("F1 Commit ensemble Classifier: {}".format(f1))
+
+    print("MCC Commit ensemble Classifier: {}".format(mcc))
+
+    model_path = config_dict['commit_classifier_model_path']
+
+    pickle.dump(ensemble_classifier, open(model_path, 'wb'))
+
 def commit_classifier_ensemble(config_dict):
     url_to_mes_train_prob = read_prob_from_file(config_dict['message_train_prob_path'])
     url_to_mes_test_prob = read_prob_from_file(config_dict['message_test_prob_path'])
@@ -1076,6 +1287,10 @@ if __name__ == '__main__':
                         type=bool,
                         required=False,
                         help='use sentimental classifier over message')
+    parser.add_argument('--use_sentimental_twitter',
+                        type=bool,
+                        required=False,
+                        help='use sentimental classifier over message')
 
     args = parser.parse_args()
     config_file_name = args.config_file
@@ -1089,19 +1304,22 @@ if __name__ == '__main__':
     # infer_all_variant(config_dict)
     # get_combined_ensemble_model()
 
-    infer_message_classifier(config_dict)
     infer_issue_classifier(config_dict)
-    infer_sentimental_classifier_tf(config_dict)
 
     # commit_classifier_ensemble(config_dict)
-
     # new function after replacing patch classifier
 
     if args.use_sentimental:
         print("// Im using sentimental classifier")
+        infer_sentimental_classifier(config_dict)
         commit_classifier_ensemble_sentimental(config_dict)
+    elif args.use_sentimental_twitter:
+        print("// Im using sentimental classifier")
+        infer_sentimental_twitter_classifier(config_dict)
+        commit_classifier_ensemble_sentimental_twitter(config_dict)
     else:
         print("// Im using message classifier")
+        infer_message_classifier(config_dict)
         commit_classifier_ensemble(config_dict)
 
     # visualize_result(config_dict)
